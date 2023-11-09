@@ -17,6 +17,22 @@ Principais benefícios:
 
 Esses benefícios trazem eficiência, consistência e segurança na configuração e gerenciamento de recursos no Grafana.
 
+# O que os scripts não fazem (ainda)?
+
+Embora o [Terraform Grafana Provider](https://registry.terraform.io/providers/grafana/grafana/2.5.0) dê suporte, ainda não foi implementado as funções nos scripts que permitem importar e gerenciar:
+
+- annotations
+- dashboards
+- datasources
+- library panels
+- playlists
+- service accounts
+- contact points
+- alerting message templates
+- alerting mute timings
+- notifications policies
+- rule groups
+
 # ATENÇÃO
 
 Lembrando que, como em qualquer ferramenta, é importante entender bem o funcionamento do Terraform e do Grafana antes de implementar essa abordagem em um ambiente de produção. Além disso, sempre faça testes em ambientes de não produção para garantir que a configuração automatizada funcione conforme o esperado.
