@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Variáveis para URL e Token do Grafana
-grafana_url=
+grafana_url="http://127.0.0.1:3000"
 grafana_token=
-org_id=
-org_name=
+org_id=1
+org_name=CASA
 
 # Obtém a versão mais recente do Terraform Provider para Grafana
 grafana_tf_version=$(
@@ -61,19 +61,7 @@ resource "grafana_folder" "${slug}" {
   org_id                       = "${org_id}"
   prevent_destroy_if_not_empty = true
 }
-EOF
 
-  #
-  jq -r '
-  [.[] | 
-  select((.teamId!=0 and .userId==0) 
-  or (.teamId==0 and .userId!=0))]' ./folder.json >./permissions.json
-
-  # Obtém o tamanho do arquivo JSON
-  length=$(jq '. | length' ./permissions.json)
-
-  # Adiciona permissões padrão ao arquivo Terraform
-  cat <<EOF >>"./${org_name}/modules/folders/${slug}.tf"
 resource "grafana_folder_permission" "${slug}_permissions" {
   depends_on = [grafana_folder.${slug}]
   folder_uid = grafana_folder.${slug}.uid
@@ -87,40 +75,22 @@ resource "grafana_folder_permission" "${slug}_permissions" {
   }
 EOF
 
-  # Adiciona permissões personalizadas ao arquivo Terraform
-  for ((i = 0; i < length; i++)); do
-    #
-    permissionName=$(jq -r ".[${i}].permissionName" ./folder.json)
-    teamId=$(jq -r ".[${i}].teamId" ./folder.json)
-    teamName=$(jq -r ".[${i}].team" ./folder.json)
-    userId=$(jq -r ".[${i}].userId" ./folder.json)
-    userLogin=$(jq -r ".[${i}].userLogin" ./folder.json)
-
-    if [ "${teamId}" == "0" ]; then
-      cat <<EOF >>"./${org_name}/modules/folders/${slug}.tf"
-  permissions {
-    user_id    = "${userId}" # ${userLogin}
-    permission = "${permissionName}"
-  }
-EOF
-    else
-      cat <<EOF >>"./${org_name}/modules/folders/${slug}.tf"
-  permissions {
-    team_id    = "${teamId}" # ${teamName}
-    permission = "${permissionName}"
-  }
-EOF
-    fi
-  done
-
+  #
+  jq -r '
+  [.[] | 
+  select((.teamId!=0 and .userId==0) 
+  or (.teamId==0 and .userId!=0))] |
+  .[] | 
+  "  permissions {
+     user_id       = \"\(.userId)\" # \(.userLogin)
+     team_id       = \"\(.teamId)\" # \(.team)
+     permission    = \"\(.permissionName)\" 
+  }"' ./folder.json >>"./${org_name}/modules/folders/${slug}.tf"
   # Fecha arquivo Terraform
   echo "}" >>"./${org_name}/modules/folders/${slug}.tf"
 
-  # Adiciona comando de importação ao script de importação
-  echo "terraform import module.folders.grafana_folder.${slug} ${folderUid}" >>"./${org_name}/import-${org_name}-resources.sh"
-
   # Cleanup
-  rm -f ./folder.json ./permissions.json
+  rm -f ./folder.json
 done <folderUIDs
 
 # Adiciona permissões de execução ao script de importação

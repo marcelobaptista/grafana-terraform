@@ -9,6 +9,15 @@ grafana_url="http://127.0.0.1:3000"
 # nome da organização
 org_name="CASA"
 
+curl -u "${admin_user}:${admin_password}" \
+  "${grafana_url}/api/users?perpage=1000&page=1&sort=login-asc,email-asc" >grafana_users.json
+
+if ! jq -e '.[].id' grafana_users.json > /dev/null 2>&1; then
+  echo "Verifique o usuário e senha do Grafana"
+  rm -f grafana_users.json
+  exit 1
+fi
+
 mkdir -p "./${org_name}/modules/users"
 
 cat <<EOF >"./${org_name}/modules/users/main.tf"
@@ -22,6 +31,7 @@ terraform {
 }
 EOF
 
+# Criação do módulo de usuários administradores do Grafana
 cat <<EOF >"./${org_name}/modules/users/grafana_admins.tf"
 variable "grafana_admins" {
   description = "Usuários administradores do Grafana"
@@ -29,51 +39,17 @@ variable "grafana_admins" {
   default = [
 EOF
 
-cat <<EOF >"./${org_name}/modules/users/grafana_viewers.tf"
-variable "grafana_viewers" {
-  description = "Usuários visualizadores do Grafana"
-  type        = list(map(string))
-  default = [
-EOF
+length=$(jq -r '[.[] | select(.isAdmin == true)] | length ' grafana_users.json)
 
-curl -u "${admin_user}:${admin_password}" "${grafana_url}/api/users?perpage=1000&page=1&sort=login-asc,email-asc" >grafana_users.json
-length=$(jq '. | length' "./grafana_users.json")
-
-j=0
-k=0
-for ((i = 0; i < length; i++)); do
-  login=$(jq -r ".[$i].login" "./grafana_users.json")
-  email=$(jq -r ".[$i].email" "./grafana_users.json")
-  name=$(jq -r ".[$i].name" "./grafana_users.json")
-  id=$(jq -r ".[$i].id" "./grafana_users.json")
-  isAdmin=$(jq -r ".[$i].isAdmin" "./grafana_users.json")
-
-  if [ "${isAdmin}" == "true" ]; then
-    cat <<EOF >>"./${org_name}/modules/users/grafana_admins.tf"
-    {
-      name     = "${name}"
-      email    = "${email}"
-      login    = "${login}"
-      password = ""
+jq -r '[.[] | select(.isAdmin == true)] | .[] |
+    "{
+      name     = \"\(.name)\"
+      email    = \"\(.email)\"
+      login    = \"\(.login)\"
+      password = \"\"
       is_admin = true
-    },
-EOF
-    echo "terraform import module.users.grafana_user.admins[$j] ${id}" >>"./${org_name}/import-${org_name}-resources.sh"
-    ((j++))
-  else
-    cat <<EOF >>"./${org_name}/modules/users/grafana_viewers.tf"
-    {
-      name     = "${name}"
-      email    = "${email}"
-      login    = "${login}"
-      password = ""
-      is_admin = false
-    },
-EOF
-    echo "terraform import module.users.grafana_user.viewers[$k] ${id}" >>"./${org_name}/import-${org_name}-resources.sh"
-    ((k++))
-  fi
-done
+      },"' grafana_users.json >>"./${org_name}/modules/users/grafana_admins.tf"
+
 cat <<EOF >>"./${org_name}/modules/users/grafana_admins.tf"
   ]
 }
@@ -88,6 +64,28 @@ resource "grafana_user" "admins" {
   is_admin = var.grafana_admins[count.index]["is_admin"]
 }
 EOF
+
+for ((i = 0; i < length; i++)); do
+  id=$(jq -r "[.[] | select(.isAdmin == true)] | .[${i}].id" grafana_users.json)
+  echo "terraform import module.users.grafana_user.admins[${i}] ${id}" >>"./${org_name}/import-${org_name}-resources.sh"
+done
+
+cat <<EOF >"./${org_name}/modules/users/grafana_viewers.tf"
+variable "grafana_viewers" {
+  description = "Usuários visualizadores do Grafana"
+  type        = list(map(string))
+  default = [
+EOF
+
+jq -r '[.[] | select(.isAdmin == false)] | .[] |
+    "{
+      name     = \"\(.name)\"
+      email    = \"\(.email)\"
+      login    = \"\(.login)\"
+      password = \"\"
+      is_admin = false
+      },"' grafana_users.json >>"./${org_name}/modules/users/grafana_viewers.tf"
+
 cat <<EOF >>"./${org_name}/modules/users/grafana_viewers.tf"
   ]
 }
@@ -102,4 +100,10 @@ resource "grafana_user" "viewers" {
   is_admin = var.grafana_viewers[count.index]["is_admin"]
 }
 EOF
+
+for ((i = 0; i < length; i++)); do
+  id=$(jq -r "[.[] | select(.isAdmin == false)] | .[${i}].id" grafana_users.json)
+  echo "terraform import module.users.grafana_user.viewers[${i}] ${id}" >>"./${org_name}/import-${org_name}-resources.sh"
+done
+
 rm -f grafana_users.json

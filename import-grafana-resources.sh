@@ -1,5 +1,10 @@
 #!/bin/bash
 
+grafana_tf_version=$(
+  curl -s "https://api.github.com/repos/grafana/terraform-provider-grafana/releases/latest" |
+    jq -r '.tag_name | sub("^v"; "")'
+)
+
 while true; do
     printf "Digite o org_id: "
     read -r org_id
@@ -82,19 +87,20 @@ while true; do
     fi
 done
 
+sed -i "s/version = \">=/version = \">= ${grafana_tf_version}/g" ./"${org_name}"/scripts/*.sh
 sed -i "s/org_id=/org_id=${org_id}/g" ./"${org_name}"/scripts/*.sh
 sed -i "s/org_name=/org_name=\"${org_name}\"/g" ./"${org_name}"/scripts/*.sh
 sed -i "s/grafana_token=/grafana_token=\"${grafana_token}\"/g" ./"${org_name}"/scripts/*.sh
-sed -i "s|grafana_url=|grafana_url=\"${grafana_url}\"|g" ./"${org_name}"/scripts/*.sh
+sed -i "s/grafana_url=/grafana_url=\"${grafana_url}\"/g" ./"${org_name}"/scripts/*.sh
 sed -i "s/admin_user=/admin_user=\"${admin_user}\"/g" ./"${org_name}"/scripts/*.sh
 sed -i "s/admin_password=/admin_password=\"${admin_password}\"/g" ./"${org_name}"/scripts/*.sh
 
 mkdir -p ./"${org_name}"/modules/{folders,organizations,teams}
 
 ./"${org_name}"/scripts/create-tf-files.sh
-./"${org_name}"/scripts/create-folders.sh
-./"${org_name}"/scripts/create-organization.sh
-./"${org_name}"/scripts/create-teams.sh
+./"${org_name}"/scripts/create-folders_tf.sh
+./"${org_name}"/scripts/create-organization_tf.sh
+./"${org_name}"/scripts/create-teams_tf.sh
 
 echo "Todos os scripts foram executados com sucesso."
 
