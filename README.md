@@ -10,7 +10,7 @@ Este projeto automatiza a importação de alguns recursos do Grafana para o Terr
 - [jq](https://jqlang.org/)
 - [Terraform (versão 1.0 ou superior)](https://developer.hashicorp.com/terraform/install)
 - [Grafana Terraform Provider](https://registry.terraform.io/providers/grafana/grafana/latest)
-- Token de API do Grafana com permissão de administração. O token deve ser gerado na organização correta, que deverá ser a mesma especificado no arquivo `variables.tf`. . [Documentação oficial](https://grafana.com/docs/grafana/latest/developers/http_api/examples/create-api-tokens-for-org/)
+- Token de API do Grafana com permissão de administração. O token deve ser gerado na organização correta, que deverá ser a mesma especificado no arquivo `variables.tf`. [Documentação oficial](https://grafana.com/docs/grafana/latest/developers/http_api/examples/create-api-tokens-for-org/)
 
 ## Estrutura
 
@@ -124,4 +124,5 @@ resource "grafana_team" "meu-time" {
 
 ## Licença
 
-MIT
+Este projeto está licenciado sob a [GNU General Public License v3.0 (GPLv3)](https://www.gnu.org/licenses/gpl-3.0.html).
+Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
